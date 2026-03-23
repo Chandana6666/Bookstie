@@ -1,0 +1,41 @@
+body {
+  background: #121212;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+}
+
+.controls {
+  margin: 20px;
+}
+
+select, button {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 8px;
+  border: none;
+}
+
+button {
+  background: #ff4757;
+  color: white;
+  cursor: pointer;
+}
+
+#results {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.book {
+  background: #1e1e1e;
+  margin: 10px;
+  padding: 10px;
+  width: 200px;
+  border-radius: 10px;
+}
+
+.book img {
+  width: 100%;
+}

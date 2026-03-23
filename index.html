@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Bookstie</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <h1>📚 Novel Recommender</h1>
+
+    <div class="controls">
+        <select id="mood">
+            <option value="happy">Happy 😄</option>
+            <option value="sad">Sad 😢</option>
+            <option value="thrilling">Thrilling 😱</option>
+            <option value="romantic">Romantic ❤️</option>
+            <option value="dark">Dark 🖤</option>
+        </select>
+
+        <select id="interest">
+            <option value="fantasy">Fantasy</option>
+            <option value="mystery">Mystery</option>
+            <option value="fiction">Fiction</option>
+            <option value="adventure">Adventure</option>
+        </select>
+
+        <button onclick="getRecommendations()">Recommend</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
