@@ -40,8 +40,7 @@ A full-stack web application that recommends novels based on the user's **mood**
 
 ### Deployment
 
-* Frontend: Netlify
-* Backend: Render
+* https://bookstie.vercel.app/
 
 ---
 
