@@ -2,7 +2,7 @@
 
 A full-stack book recommender that suggests novels based on how you feel and what you like to read.
 
-Pick a **mood** and a **genre**, and Bookstie returns ten books that match both — mixing well-known favourites with recent releases.
+Pick a **mood** and a **genre**, and Bookstie returns ten books that match both — a mix of well-known favourites and the newest releases. Press **Recommend** again and you get a different set, because every request is freshly paged and shuffled.
 
 ---
 
@@ -10,7 +10,7 @@ Pick a **mood** and a **genre**, and Bookstie returns ten books that match both 
 
 - 🎭 **11 moods** — Happy, Sad, Thrilling, Romantic, Dark, Funny, Cozy, Spooky, Epic, Reflective, Hopeful
 - 📖 **10 genres** — Fantasy, Mystery, Fiction, Adventure, Romance, Science Fiction, Horror, Thriller, Historical Fiction, Young Adult
-- 🆕 **New releases surface automatically** — every request queries the current year, so a novel appears as soon as Open Library indexes it, with a `New` badge
+- 🆕 **New releases surface automatically** — every request queries the current year, so a novel appears as soon as Open Library indexes it, and anything from the last 3 calendar years gets a `New` badge
 - 🔀 **Different books every click** — randomised result paging and shuffling mean pressing *Recommend* again brings a fresh set instead of the same list
 - 📚 **10 results per search** with covers, authors and publication years
 - 🖼️ **Cover-first results** — new arrivals without a cover are skipped so cards never look broken
@@ -82,6 +82,8 @@ Bookstie/
 
 ## ⚙️ Run Locally
 
+**Requirements:** Node.js 18 or newer (the backend uses the built-in `fetch`).
+
 ### 1️⃣ Clone
 
 ```bash
@@ -97,7 +99,14 @@ npm install
 npm start
 ```
 
-The API runs at `http://localhost:5000`.
+The API runs at `http://localhost:5000`. You should see:
+
+```
+Server running on http://localhost:5000
+```
+
+> If Google Books has no quota, the first request also logs
+> `Google Books failed (…), falling back to Open Library` — that is expected.
 
 ### 3️⃣ Serve the frontend
 
@@ -110,6 +119,14 @@ npx http-server . -p 8080
 Then open `http://localhost:8080`.
 
 > Opening `index.html` directly from the file system also works, but serving it avoids browser restrictions.
+
+### 4️⃣ Use it
+
+1. Pick a **Mood** from the first dropdown.
+2. Pick a **Genre** from the second dropdown.
+3. Press **Recommend**.
+4. Press it again for a new set of books — the list changes on every click.
+5. Books published recently carry a green **NEW** badge next to their year.
 
 ---
 
@@ -151,6 +168,29 @@ Responses are never cached (`Cache-Control: no-store`), so each call can return 
 | `200` | List of books (possibly empty) |
 | `400` | Unknown mood/genre — response includes `allowed.moods` and `allowed.interests` |
 | `500` | Both book APIs failed |
+
+### Response fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title` | string | Book title |
+| `authors` | string[] | Author names (may be empty) |
+| `thumbnail` | string | Cover URL, or `""` when no cover exists |
+| `description` | string | First sentence used as a short blurb, or `""` |
+| `year` | number \| null | First publication year |
+| `ratingsCount` | number | Open Library rating count; `0` when unrated |
+| `ratingsAverage` | number | Open Library average rating; `0` when unrated |
+
+---
+
+## 📌 Good to Know
+
+- **Results are meant to vary.** Random paging and shuffling run on every click, so two identical searches usually return different books. Nothing is cached.
+- **New books need no update.** The current-year query runs live against Open Library on every request, so freshly published novels appear automatically without touching the code or a database.
+- **New arrivals always have covers.** Coverless releases are skipped for the fresh slots so cards never render broken.
+- **The first request can be slower.** The backend may query Open Library several times (new arrivals + popular picks), and a failed Google Books call is remembered for 10 minutes.
+- **Google Books is optional.** Its shared, keyless quota is frequently exhausted (`429`), so Open Library is the practical data source. Add your own key to use Google Books first.
+- **Duplicates and noise are filtered.** Titles are deduped, non-English editions are dropped, bundled `Works (…)` entries are removed, and at most 2 books per author are shown.
 
 ---
 
