@@ -12,7 +12,8 @@ async function getRecommendations() {
 
   try {
     const res = await fetch(
-      `${API_BASE}/recommend?mood=${encodeURIComponent(mood)}&interest=${encodeURIComponent(interest)}`
+      `${API_BASE}/recommend?mood=${encodeURIComponent(mood)}&interest=${encodeURIComponent(interest)}`,
+      { cache: "no-store" }
     );
 
     if (!res.ok) {

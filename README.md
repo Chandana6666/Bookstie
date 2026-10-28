@@ -10,8 +10,10 @@ Pick a **mood** and a **genre**, and Bookstie returns ten books that match both 
 
 - 🎭 **11 moods** — Happy, Sad, Thrilling, Romantic, Dark, Funny, Cozy, Spooky, Epic, Reflective, Hopeful
 - 📖 **10 genres** — Fantasy, Mystery, Fiction, Adventure, Romance, Science Fiction, Horror, Thriller, Historical Fiction, Young Adult
-- 🆕 **Recent releases included** — recommendations blend current books with classics, and new ones get a `New` badge
+- 🆕 **New releases surface automatically** — every request queries the current year, so a novel appears as soon as Open Library indexes it, with a `New` badge
+- 🔀 **Different books every click** — randomised result paging and shuffling mean pressing *Recommend* again brings a fresh set instead of the same list
 - 📚 **10 results per search** with covers, authors and publication years
+- 🖼️ **Cover-first results** — new arrivals without a cover are skipped so cards never look broken
 - 🚫 **Variety guard** — no more than 2 books from the same author
 - 🔁 **Dual data source** — Google Books first, automatic Open Library fallback
 - ⚡ **Fast** — failed Google calls are cached for 10 minutes, so only the first request is slow
@@ -44,9 +46,10 @@ Pick a **mood** and a **genre**, and Bookstie returns ten books that match both 
 4. It tries the **Google Books API** first. If that fails (missing key, quota exceeded, network error), it falls back to **Open Library**.
 5. Open Library queries combine both choices, for example `subject:fantasy subject:romance`, and broaden only if nothing is found:
    `mood + genre` → `genre` → free-text keywords.
-6. A second query adds **recent books** (published in the last 6 years), and the two lists are merged:
-   up to 4 recent titles first, then popular all-time picks, capped at 10 with no more than 2 per author.
-7. Books are returned as JSON and rendered as cards.
+6. A **new-arrivals** pass runs on every request: it queries works published in the current year (falling back to the last 2 years, then 6), keeps only titles with a cover, and puts the best-rated fresh releases in the first four slots. Because this runs live, a newly published novel shows up without any database update or redeploy.
+7. A **popular picks** pass fills the remaining slots from the mood + genre query, sorted by Open Library reading logs.
+8. Both passes start at a **random page** (`offset`) and shuffle their results, and the API sends `Cache-Control: no-store`, so clicking *Recommend* again returns different books.
+9. Books are returned as JSON and rendered as cards (capped at 10, max 2 per author).
 
 ---
 
@@ -130,14 +133,18 @@ GET http://localhost:5000/recommend?mood=cozy&interest=mystery
 ```json
 [
   {
-    "title": "The Housemaid",
-    "authors": ["Freida McFadden"],
-    "thumbnail": "https://covers.openlibrary.org/b/id/12598569-M.jpg",
+    "title": "King of Gluttony",
+    "authors": ["..."],
+    "thumbnail": "https://covers.openlibrary.org/b/id/15123456-M.jpg",
     "description": "...",
-    "year": 2022
+    "year": 2026,
+    "ratingsCount": 5,
+    "ratingsAverage": 4
   }
 ]
 ```
+
+Responses are never cached (`Cache-Control: no-store`), so each call can return a different set.
 
 | Status | Meaning |
 | --- | --- |

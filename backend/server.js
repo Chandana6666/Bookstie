@@ -8,8 +8,10 @@ const PORT = process.env.PORT || 5000;
 const GOOGLE_BOOKS_API_KEY = process.env.GOOGLE_BOOKS_API_KEY || "";
 
 const TOTAL_RESULTS = 10;
-const RECENT_RESULTS = 4;
-const RECENT_YEARS = 6;
+const NEW_ARRIVALS_COUNT = 4; // fresh releases placed at the top
+const NEW_ARRIVALS_YEARS = 2; // "new" window
+const WIDE_RECENT_YEARS = 6; // broader recent fallback
+const MAX_PER_AUTHOR = 2;
 
 // Google Books quota is often exhausted (429). Remember failures briefly so we
 // don't pay that failed round-trip on every single request.
@@ -92,9 +94,30 @@ function openLibraryQueries(mood, interest) {
   return queries;
 }
 
-function recentYearFilter() {
-  const year = new Date().getFullYear();
-  return `first_publish_year:[${year - RECENT_YEARS} TO ${year + 1}]`;
+function currentYear() {
+  return new Date().getFullYear();
+}
+
+function yearFilter(yearsBack) {
+  const year = currentYear();
+  return `first_publish_year:[${year - yearsBack} TO ${year + 1}]`;
+}
+
+// Open Library supports offset paging. Random pages mean a new click brings a
+// different slice of the catalogue instead of the same top-rated books.
+function randomOffset(pageSize, pages) {
+  return Math.floor(Math.random() * pages) * pageSize;
+}
+
+function shuffle(items) {
+  const copy = [...items];
+
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
 }
 
 // Google Books returns thumbnails over http; browsers block them on https pages.
@@ -154,13 +177,14 @@ function isUsableTitle(title) {
   return /^[A-Za-z0-9 '&:,.!?()\-]+$/.test(title);
 }
 
-async function fetchOpenLibraryDocs(query, { sort = "readinglog", limit = 40 } = {}) {
+async function fetchOpenLibraryDocs(query, { sort = "readinglog", limit = 40, offset = 0 } = {}) {
   const params = new URLSearchParams({
     q: query,
     limit: String(limit),
     sort,
     language: "eng",
-    fields: "title,author_name,cover_i,first_sentence,language,first_publish_year"
+    offset: String(offset),
+    fields: "title,author_name,cover_i,first_sentence,language,first_publish_year,ratings_average,ratings_count"
   });
 
   const response = await fetch(`https://openlibrary.org/search.json?${params.toString()}`);
@@ -200,31 +224,89 @@ async function fetchOpenLibraryDocs(query, { sort = "readinglog", limit = 40 } =
       description: Array.isArray(doc.first_sentence)
         ? doc.first_sentence[0]
         : doc.first_sentence || "",
-      year: doc.first_publish_year || null
+      year: doc.first_publish_year || null,
+      ratingsCount: doc.ratings_count || 0,
+      ratingsAverage: doc.ratings_average || 0
     }));
 }
 
-// Recent releases that match the mood/genre. Falls back to genre-only so a new
-// book still shows up when the mood + genre combo is too narrow.
-async function fetchRecentBooks(mood, interest) {
+// Books published in the current year first, then the last couple of years,
+// then a wider recent window. Because these queries run on every request, a
+// novel shows up here automatically as soon as the API indexes it.
+async function fetchNewArrivals(mood, interest) {
   const genreSubject = SUBJECT_MAP[interest];
   const moodSubject = MOOD_SUBJECT_MAP[mood];
-  const yearFilter = recentYearFilter();
+  const thisYear = `first_publish_year:[${currentYear()} TO ${currentYear() + 1}]`;
   const candidates = [];
 
+  // Genre-only current-year queries are much better populated (thousands of
+  // works with covers) than mood + genre ones, which often only match a handful
+  // of self-published titles. Try the broad query first and use the mood
+  // pairing to add variety afterwards.
+  if (genreSubject) {
+    candidates.push(`subject:${genreSubject} ${thisYear}`);
+  }
+
   if (genreSubject && moodSubject) {
-    candidates.push(`subject:${genreSubject} subject:${moodSubject} ${yearFilter}`);
+    candidates.push(`subject:${genreSubject} subject:${moodSubject} ${thisYear}`);
   }
 
   if (genreSubject) {
-    candidates.push(`subject:${genreSubject} ${yearFilter}`);
+    candidates.push(`subject:${genreSubject} ${yearFilter(NEW_ARRIVALS_YEARS)}`);
   }
 
-  for (const query of candidates) {
-    const books = await fetchOpenLibraryDocs(query, { limit: 12 });
+  if (genreSubject && moodSubject) {
+    candidates.push(`subject:${genreSubject} subject:${moodSubject} ${yearFilter(NEW_ARRIVALS_YEARS)}`);
+  }
 
-    if (books.length >= 3) {
-      return books;
+  if (genreSubject) {
+    candidates.push(`subject:${genreSubject} ${yearFilter(WIDE_RECENT_YEARS)}`);
+  }
+
+  const collected = [];
+  const seen = new Set();
+  let attempts = 0;
+
+  for (const query of candidates) {
+    if (collected.length >= NEW_ARRIVALS_COUNT * 2 || attempts >= 3) break;
+    attempts += 1;
+
+    const books = await fetchOpenLibraryDocs(query, {
+      limit: 40,
+      offset: randomOffset(20, 2)
+    });
+
+    books.forEach(book => {
+      // Coverless new arrivals are almost always unindexed indie titles and
+      // look broken in the UI, so they never make the cut.
+      if (!book.thumbnail || seen.has(book.title)) return;
+      seen.add(book.title);
+      collected.push(book);
+    });
+  }
+
+  // Keep this year's books ahead of the wider recent window, so a flood of
+  // well-rated older titles can never push genuinely new releases down. Within
+  // each bucket, prefer books readers actually rated.
+  const rank = (a, b) => (b.ratingsCount || 0) - (a.ratingsCount || 0);
+  const fresh = collected.filter(book => (book.year || 0) >= currentYear());
+  const recent = collected.filter(book => (book.year || 0) < currentYear());
+
+  const freshTop = shuffle(fresh.sort(rank).slice(0, NEW_ARRIVALS_COUNT * 2));
+  const recentTop = shuffle(recent.sort(rank).slice(0, NEW_ARRIVALS_COUNT * 2));
+
+  return [...freshTop, ...recentTop];
+}
+
+async function fetchPopular(mood, interest) {
+  for (const query of openLibraryQueries(mood, interest)) {
+    const books = await fetchOpenLibraryDocs(query, {
+      limit: 40,
+      offset: randomOffset(40, 2)
+    });
+
+    if (books.length > 0) {
+      return shuffle(books);
     }
   }
 
@@ -232,22 +314,15 @@ async function fetchRecentBooks(mood, interest) {
 }
 
 async function recommendFromOpenLibrary(mood, interest) {
-  const recent = await fetchRecentBooks(mood, interest);
-
-  let popular = [];
-
-  for (const query of openLibraryQueries(mood, interest)) {
-    popular = await fetchOpenLibraryDocs(query, { limit: 40 });
-
-    if (popular.length > 0) {
-      break;
-    }
-  }
+  const [newArrivals, popular] = await Promise.all([
+    fetchNewArrivals(mood, interest),
+    fetchPopular(mood, interest)
+  ]);
 
   const books = [];
   const seen = new Set();
   const authorCounts = new Map();
-  const MAX_PER_AUTHOR = 2;
+  const deferred = [];
 
   const add = book => {
     if (seen.has(book.title) || books.length >= TOTAL_RESULTS) return;
@@ -260,12 +335,7 @@ async function recommendFromOpenLibrary(mood, interest) {
     }
   };
 
-  // First pass keeps variety by limiting repeats per author, the second pass
-  // fills any remaining slots so a short list isn't left half empty.
-  const pool = [...recent.slice(0, RECENT_RESULTS), ...popular];
-  const deferred = [];
-
-  pool.forEach(book => {
+  const addWithCap = book => {
     const authorKey = (book.authors[0] || "").toLowerCase();
 
     if (authorKey && (authorCounts.get(authorKey) || 0) >= MAX_PER_AUTHOR) {
@@ -274,14 +344,22 @@ async function recommendFromOpenLibrary(mood, interest) {
     }
 
     add(book);
-  });
+  };
 
+  // Fresh releases first, then popular picks, then anything left over so the
+  // list still reaches ten books.
+  newArrivals.slice(0, NEW_ARRIVALS_COUNT).forEach(addWithCap);
+  popular.forEach(addWithCap);
+  newArrivals.forEach(addWithCap);
   deferred.forEach(add);
 
   return books.slice(0, TOTAL_RESULTS);
 }
 
 app.get("/recommend", async (req, res) => {
+  // Recommendations are randomised per click, so never let a browser cache them.
+  res.set("Cache-Control", "no-store");
+
   const { mood, interest } = req.query;
 
   if (!MOODS.includes(mood) || !INTERESTS.includes(interest)) {
@@ -298,7 +376,7 @@ app.get("/recommend", async (req, res) => {
       const books = await fetchFromGoogleBooks(query);
 
       if (books.length > 0) {
-        return res.json(books);
+        return res.json(shuffle(books));
       }
     } catch (err) {
       googleUnavailableUntil = Date.now() + GOOGLE_RETRY_AFTER_MS;
