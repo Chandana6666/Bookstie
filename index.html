@@ -11,32 +11,38 @@
     <h1>📚 BOOKSTIE:your book bestie</h1>
 
     <div class="controls">
-        <select id="mood">
-            <option value="happy">Happy 😄</option>
-            <option value="sad">Sad 😢</option>
-            <option value="thrilling">Thrilling 😱</option>
-            <option value="romantic">Romantic ❤️</option>
-            <option value="dark">Dark 🖤</option>
-            <option value="funny">Funny 😂</option>
-            <option value="cozy">Cozy ☕</option>
-            <option value="spooky">Spooky 👻</option>
-            <option value="epic">Epic ⚔️</option>
-            <option value="reflective">Reflective 🧘</option>
-            <option value="hopeful">Hopeful 🌱</option>
-        </select>
+        <div class="control">
+            <label for="mood">Mood</label>
+            <select id="mood">
+                <option value="happy">Happy 😄</option>
+                <option value="sad">Sad 😢</option>
+                <option value="thrilling">Thrilling 😱</option>
+                <option value="romantic">Romantic ❤️</option>
+                <option value="dark">Dark 🖤</option>
+                <option value="funny">Funny 😂</option>
+                <option value="cozy">Cozy ☕</option>
+                <option value="spooky">Spooky 👻</option>
+                <option value="epic">Epic ⚔️</option>
+                <option value="reflective">Reflective 🧘</option>
+                <option value="hopeful">Hopeful 🌱</option>
+            </select>
+        </div>
 
-        <select id="interest">
-            <option value="fantasy">Fantasy</option>
-            <option value="mystery">Mystery</option>
-            <option value="fiction">Fiction</option>
-            <option value="adventure">Adventure</option>
-            <option value="romance">Romance</option>
-            <option value="scifi">Science Fiction</option>
-            <option value="horror">Horror</option>
-            <option value="thriller">Thriller</option>
-            <option value="historical">Historical Fiction</option>
-            <option value="youngadult">Young Adult</option>
-        </select>
+        <div class="control">
+            <label for="interest">Genre</label>
+            <select id="interest">
+                <option value="fantasy">Fantasy</option>
+                <option value="mystery">Mystery</option>
+                <option value="fiction">Fiction</option>
+                <option value="adventure">Adventure</option>
+                <option value="romance">Romance</option>
+                <option value="scifi">Science Fiction</option>
+                <option value="horror">Horror</option>
+                <option value="thriller">Thriller</option>
+                <option value="historical">Historical Fiction</option>
+                <option value="youngadult">Young Adult</option>
+            </select>
+        </div>
 
         <button onclick="getRecommendations()">Recommend</button>
     </div>

@@ -6,14 +6,35 @@ body {
 }
 
 .controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
   margin: 20px;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.control label {
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #b3b3b3;
+  padding-left: 4px;
 }
 
 select, button {
   padding: 10px;
-  margin: 5px;
   border-radius: 8px;
   border: none;
+  font-size: 0.95rem;
 }
 
 button {
