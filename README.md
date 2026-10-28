@@ -4,7 +4,6 @@ A full-stack book recommender that suggests novels based on how you feel and wha
 
 Pick a **mood** and an **interest**, and Bookstie returns ten books that match both.
 
-> Live demo: https://bookstie.vercel.app/
 
 ---
 
